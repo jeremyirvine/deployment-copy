@@ -1,13 +1,12 @@
 use clap::Parser;
 use crossterm::{
-    cursor::{MoveToColumn, MoveToNextLine, MoveUp},
-    execute, queue,
-    style::{Print, Color, SetForegroundColor, Stylize},
+    cursor::{MoveToColumn, MoveUp},
+    queue,
+    style::{Color, Print, SetForegroundColor, Stylize},
     terminal::{Clear, ClearType},
 };
 use std::{
-    io::{stdout, Write, Stdout},
-    ops::Deref,
+    io::{stdout, Write},
     path::PathBuf,
 };
 
@@ -25,20 +24,17 @@ pub struct Args {
     pub drives: Vec<PathBuf>,
 
     #[arg(long, short)]
-    pub rename: Option<String>,
-
-    #[arg(long, short)]
     pub yes: bool,
 }
 
 fn main() {
-    let mut args = Args::parse();
+    let args = Args::parse();
 
     let mut copy_from = ::std::env::current_dir().expect("Failed to get current directory");
     copy_from.push(args.copy_from.clone());
 
     let dir = ::std::fs::read_dir(&copy_from)
-        .expect(format!("Could not open directory `{}`", copy_from.display()).as_str());
+        .unwrap_or_else(|_| panic!("Could not open directory `{}`", copy_from.display()));
 
     let dir_list = dir
         .filter(|d| d.is_ok())
@@ -64,11 +60,13 @@ fn main() {
 
         match buffer.replace("\r\n", "").to_lowercase().as_str() {
             "y" | "yes" => {
-                queue!(stdout(), 
-                    MoveUp(1), 
-                    Clear(ClearType::CurrentLine), 
+                queue!(
+                    stdout(),
+                    MoveUp(1),
+                    Clear(ClearType::CurrentLine),
                     MoveToColumn(0)
-                ).unwrap();
+                )
+                .unwrap();
 
                 stdout().flush().unwrap();
             }
@@ -81,14 +79,10 @@ fn main() {
 
     let mut queue = CopyQueue::from(&args);
     handle_copying(&mut queue);
-
-    if let Some(drive_name) = args.rename {
-        println!("[decopy] Renaming `D:\\` to `{}`", drive_name);
-    }
 }
 
 fn print_pre_copy_status(dir_list: &Vec<(PathBuf, String)>, args: &Args) {
-    log(format!("Destinations staged to be copied to:\n"));
+    log("Destinations staged to be copied to:\n");
     for drive in args.drives.clone() {
         println!("  {}", drive.display().to_string().dark_grey());
     }
@@ -99,7 +93,7 @@ fn print_pre_copy_status(dir_list: &Vec<(PathBuf, String)>, args: &Args) {
         (&dir_list[..], false)
     };
 
-    for (path, display) in list {
+    for (_, display) in list {
         println!("  {}", display.clone().dark_grey());
     }
     if is_overflowing {
@@ -111,11 +105,12 @@ pub fn handle_copying(queue: &mut CopyQueue) {
     // execute!(stdout(), MoveToNextLine(1)).unwrap();
 
     let onpercentage = move |percent: usize, current_dir: PathBuf| {
-        queue!(stdout(),
-            Clear(ClearType::CurrentLine),
-            MoveToColumn(0),
-        ).unwrap();
-        log_queue(format!("Copying... ({} %) --> {}", percent, current_dir.display()));
+        queue!(stdout(), Clear(ClearType::CurrentLine), MoveToColumn(0),).unwrap();
+        log_queue(format!(
+            "Copying... ({} %) --> {}",
+            percent,
+            current_dir.display()
+        ));
 
         stdout().flush().unwrap();
     };
@@ -129,14 +124,16 @@ pub fn handle_copying(queue: &mut CopyQueue) {
 }
 
 pub fn log_queue(msg: impl Into<String>) {
-    queue!(stdout(),
+    queue!(
+        stdout(),
         Print("["),
         SetForegroundColor(Color::Magenta),
         Print("decopy"),
         SetForegroundColor(Color::Reset),
         Print("] "),
         Print(msg.into()),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 pub fn log(msg: impl Into<String>) {

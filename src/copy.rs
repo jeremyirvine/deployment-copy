@@ -1,14 +1,6 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    cell::RefCell,
-    ops::Deref,
-    path::{self, PathBuf},
-    rc::Rc,
-    thread::{JoinHandle, sleep},
-    time::Duration,
-};
+use std::path::PathBuf;
 
-use fs_extra::dir::{copy_with_progress, CopyOptions, get_size};
+use fs_extra::dir::{copy_with_progress, get_size, CopyOptions};
 
 use crate::Args;
 
@@ -30,16 +22,19 @@ impl From<&Args> for CopyQueue {
 impl CopyQueue {
     ///
     /// Starts the copy process using CopyQueue's source and destination variables
-    /// 
+    ///
     /// Callbacks:
     /// * `onpercentage` - `|percentage: usize, source_dir: PathBuf| -> ()`
     /// * `oncomplete`   - `|| -> ()`
-    /// 
-    pub fn start_copy(&self, onpercentage: Box<impl Fn(usize, PathBuf)>, oncomplete: Box<impl FnOnce()>)
-    {
+    ///
+    pub fn start_copy(
+        &self,
+        onpercentage: Box<impl Fn(usize, PathBuf)>,
+        oncomplete: Box<impl FnOnce()>,
+    ) {
         let total_bytes = get_size(self.source.clone()).unwrap();
         for dest in self.destinations.clone() {
-            let mut opt = CopyOptions {
+            let opt = CopyOptions {
                 overwrite: true,
                 content_only: true,
                 ..CopyOptions::new()
@@ -48,7 +43,8 @@ impl CopyQueue {
                 let percentage = (proc_info.copied_bytes as f64 / total_bytes as f64) * 100.;
                 onpercentage(percentage as usize, dest.clone());
                 fs_extra::dir::TransitProcessResult::ContinueOrAbort
-            }).unwrap();
+            })
+            .unwrap();
         }
 
         oncomplete();
