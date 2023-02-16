@@ -104,11 +104,12 @@ fn print_pre_copy_status(dir_list: &Vec<(PathBuf, String)>, args: &Args) {
 pub fn handle_copying(queue: &mut CopyQueue) {
     // execute!(stdout(), MoveToNextLine(1)).unwrap();
 
-    let onpercentage = move |percent: usize, current_dir: PathBuf| {
+    let onpercentage = move |percent: usize, current_dir: PathBuf, bytes_copied: usize| {
         queue!(stdout(), Clear(ClearType::CurrentLine), MoveToColumn(0),).unwrap();
         log_queue(format!(
-            "Copying... ({} %) --> {}",
+            "Copying... ({} %) [{} copied] --> {}",
             percent,
+            get_bytes_string(bytes_copied),
             current_dir.display()
         ));
 
@@ -139,4 +140,22 @@ pub fn log_queue(msg: impl Into<String>) {
 pub fn log(msg: impl Into<String>) {
     log_queue(msg);
     stdout().flush().unwrap();
+}
+
+pub fn get_bytes_string(bytes: usize) -> String {
+    match bytes {
+        bytes if bytes >= 1024usize.pow(4) => {
+            format!("{}tb", bytes / 1024usize.pow(4))
+        }
+        bytes if bytes >= 1024usize.pow(3) => {
+            format!("{}gb", bytes / 1024usize.pow(3))
+        }
+        bytes if bytes >= 1024usize.pow(2) => {
+            format!("{}mb", bytes / 1024usize.pow(2))
+        }
+        bytes if bytes >= 1024 => {
+            format!("{}kb", bytes / 1024)
+        }
+        n => format!("{}b", n),
+    }
 }
