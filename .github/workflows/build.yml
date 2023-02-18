@@ -12,4 +12,5 @@ jobs:
       - name: Tag And Release Rust binary
         uses: xhaiker/rust-release.action@v1.0.2
         with:
+          release: ${{ github.ref_name }}
           rust_target: x86_64-pc-windows-gnu
