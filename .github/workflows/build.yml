@@ -9,5 +9,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Rust Release binary
-        uses: rust-build/rust-build.action@v1.4.2
+      - name: Tag And Release Rust binary
+        uses: xhaiker/rust-release.action@v1.0.2
+        with:
+          rust_target: x86_64-pc-windows-gnu
