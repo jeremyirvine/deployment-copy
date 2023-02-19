@@ -87,39 +87,22 @@ use crate::copy::CopyQueue;
 ///
 
 // Straight Pieces
-#[allow(dead_code)]
 const VERTICAL_CHAR: char = '│';
-
-#[allow(dead_code)]
 const HORIZONTAL_CHAR: char = '─';
 
 // Split Pieces
-#[allow(dead_code)]
 const SPLIT_RIGHT: char = '┤';
-
-#[allow(dead_code)]
 const SPLIT_LEFT: char = '├';
-
 #[allow(dead_code)]
 const SPLIT_ABOVE: char = '┬';
-
 #[allow(dead_code)]
 const SPLIT_BELOW: char = '┴';
 
 // Corner Pieces (styled w/ rounded edges)
-#[allow(dead_code)]
 const BOTTOM_LEFT_CHAR: char = '╰';
-
-#[allow(dead_code)]
 const BOTTOM_RIGHT_CHAR: char = '╯';
-
-#[allow(dead_code)]
 const TOP_LEFT_CHAR: char = '╭';
-
-#[allow(dead_code)]
 const TOP_RIGHT_CHAR: char = '╮';
-
-#[allow(dead_code)]
 const BOX_WIDTH: usize = 51;
 
 #[derive(Clone)]
