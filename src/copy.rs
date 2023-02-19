@@ -19,7 +19,24 @@ impl From<&Args> for CopyQueue {
     }
 }
 
+impl From<(PathBuf, Vec<PathBuf>)> for CopyQueue {
+    fn from(value: (PathBuf, Vec<PathBuf>)) -> Self {
+        let (source, destinations) = value;
+        Self {
+            source, destinations
+        }
+    }
+}
+
 impl CopyQueue {
+    pub fn source(&self) -> PathBuf {
+        self.source.clone()
+    }
+
+    pub fn destinations(&self) -> Vec<PathBuf> {
+        self.destinations.clone()
+    }
+
     ///
     /// Starts the copy process using CopyQueue's source and destination variables
     ///
@@ -29,8 +46,8 @@ impl CopyQueue {
     ///
     pub fn start_copy(
         &self,
-        onpercentage: Box<impl Fn(usize, PathBuf, usize)>,
-        oncomplete: Box<impl FnOnce()>,
+        onpercentage: impl Fn(usize, PathBuf, usize),
+        oncomplete: impl FnOnce(),
     ) {
         let total_bytes = get_size(self.source.clone()).unwrap();
         for dest in self.destinations.clone() {
