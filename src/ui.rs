@@ -9,7 +9,7 @@ use std::{
     sync::mpsc::Receiver,
 };
 
-use crate::copy::CopyQueue;
+use crate::{copy::CopyQueue, string::truncate};
 
 ///
 /// # Deployment Copy UI
@@ -151,7 +151,7 @@ impl UserInterface {
     pub fn render(&self, stdout: &mut Stdout) -> Result<(), std::io::Error> {
         match self.state {
             Some(UIState::PreCopy(ref queue)) => self.render_pre_copy(stdout, queue),
-            _ => Ok(())
+            _ => Ok(()),
         }?;
 
         stdout.flush()
@@ -161,14 +161,10 @@ impl UserInterface {
         let title = "Deployment Copy";
         let width = BOX_WIDTH - (title.len() + 1);
 
+        queue!(stdout, MoveTo(0, 0),)?;
+        self.render_side_top(stdout, None)?;
         queue!(
             stdout,
-            MoveTo(0, 0),
-        )?;
-        self.render_side_top(stdout)?;
-        queue!(
-            stdout,
-            MoveToNextLine(1),
             Print(format!(
                 "{} {}{: >width$}{}",
                 VERTICAL_CHAR,
@@ -187,12 +183,16 @@ impl UserInterface {
         )
     }
 
-    fn render_lines(&self, stdout: &mut Stdout, content: Vec<impl Into<String>>) -> Result<(), std::io::Error> {
-        for line in content {
-            let line = line.into();
+    fn render_lines(
+        &self,
+        stdout: &mut Stdout,
+        content: Vec<String>,
+    ) -> Result<(), std::io::Error> {
+        for (i, line) in content.iter().enumerate() {
             let width = BOX_WIDTH
                 .checked_sub(line.unformat().len())
-                .unwrap_or(BOX_WIDTH) - 1;
+                .unwrap_or(BOX_WIDTH)
+                - 1;
 
             queue!(
                 stdout,
@@ -206,52 +206,122 @@ impl UserInterface {
         Ok(())
     }
 
-    fn render_side_top(&self, stdout: &mut Stdout) -> Result<(), std::io::Error> {
-        queue!(
-            stdout,
-            Print(format!(
+    fn render_side_top(
+        &self,
+        stdout: &mut Stdout,
+        split: Option<(usize, char)>,
+    ) -> Result<(), std::io::Error> {
+        let line_string = if let Some((at, character)) = split {
+            let mut line_chars = format!(
                 "{}{}{}",
                 TOP_LEFT_CHAR,
                 (HORIZONTAL_CHAR.to_string()).repeat(BOX_WIDTH),
                 TOP_RIGHT_CHAR,
-            )),
-        )
+            )
+            .chars()
+            .collect::<Vec<char>>();
+
+            if line_chars.len() > at && at > 0 {
+                line_chars[at] = character;
+            }
+
+            line_chars.iter().collect::<String>()
+        } else {
+            format!(
+                "{}{}{}",
+                TOP_LEFT_CHAR,
+                (HORIZONTAL_CHAR.to_string()).repeat(BOX_WIDTH),
+                TOP_RIGHT_CHAR,
+            )
+        };
+
+        queue!(stdout, Print(line_string), MoveToNextLine(1))
     }
 
-    fn render_side_bottom(&self, stdout: &mut Stdout) -> Result<(), std::io::Error> {
-        queue!(
-            stdout,
-            Print(format!(
+    fn render_side_bottom(
+        &self,
+        stdout: &mut Stdout,
+        split: Option<(usize, char)>,
+    ) -> Result<(), std::io::Error> {
+        let line_string = if let Some((at, character)) = split {
+            let mut line_chars = format!(
                 "{}{}{}",
                 BOTTOM_LEFT_CHAR,
                 (HORIZONTAL_CHAR.to_string()).repeat(BOX_WIDTH),
                 BOTTOM_RIGHT_CHAR,
-            )),
-            MoveToNextLine(1),
-        )
+            )
+            .chars()
+            .collect::<Vec<char>>();
+
+            if line_chars.len() > at && at > 0 {
+                line_chars[at] = character;
+            }
+
+            line_chars.iter().collect::<String>()
+        } else {
+            format!(
+                "{}{}{}",
+                BOTTOM_LEFT_CHAR,
+                (HORIZONTAL_CHAR.to_string()).repeat(BOX_WIDTH),
+                BOTTOM_RIGHT_CHAR,
+            )
+        };
+
+        queue!(stdout, Print(line_string), MoveToNextLine(1))
     }
 
-    fn render_queue(&self, _stdout: &mut Stdout, queue: &CopyQueue) -> Result<(), std::io::Error> {
+    fn render_queue(&self, stdout: &mut Stdout, queue: &CopyQueue) -> Result<(), std::io::Error> {
         // TODO: Implement queue render function
-        let _arrow_index = match queue.destinations().len() {
-            0 => None,
-            1 | 2 => Some(1),
-            c => Some(c/2),
+        let arrow_index = match queue.destinations().len() {
+            0 => 0,
+            1 | 2 => 1,
+            c => (c as f64 / 2.).floor() as usize,
         };
+
+        let left_column_spacing = match queue.source().to_string_lossy().len() {
+            size if size <= 15 => size + 4,
+            _ => 15 + 4,
+        };
+
+        let empty_space_padding = left_column_spacing - 1;
+
+        self.render_side_top(stdout, Some((left_column_spacing, SPLIT_ABOVE)))?;
+        self.render_lines(
+            stdout,
+            queue
+                .destinations()
+                .iter()
+                .enumerate()
+                .map(|(i, dest)| {
+                    match i {
+                        i if i == arrow_index => format!("{} {}>  ", truncate(queue.source().display().to_string(), 15), HORIZONTAL_CHAR.to_string().repeat(2)),
+                        i => format!("{: >empty_space_padding$}", VERTICAL_CHAR),
+                    }
+                })
+                .collect(),
+        )?;
+        self.render_side_bottom(stdout, Some((left_column_spacing, SPLIT_BELOW)))?;
         Ok(())
     }
 
-    fn render_pre_copy(&self, stdout: &mut Stdout, queue: &CopyQueue) -> Result<(), std::io::Error> {
+    fn render_pre_copy(
+        &self,
+        stdout: &mut Stdout,
+        queue: &CopyQueue,
+    ) -> Result<(), std::io::Error> {
         self.render_header(stdout)?;
-        self.render_lines(stdout, vec![
-            "Do you want to copy to these directories?".into(),
-            format!(
-                "Press {} or {} on your keyboard",
-                "[Y]".dark_grey().bold(),
-                "[N]".dark_grey().bold()
-            ),
-        ])?;
-        self.render_side_bottom(stdout)?;
+        self.render_lines(
+            stdout,
+            vec![
+                "Do you want to copy to these directories?".into(),
+                format!(
+                    "Press {} or {} on your keyboard",
+                    "[Y]".dark_grey().bold(),
+                    "[N]".dark_grey().bold()
+                ),
+            ],
+        )?;
+        self.render_side_bottom(stdout, None)?;
         self.render_queue(stdout, queue)
     }
 }

@@ -9,6 +9,7 @@ use crate::copy::CopyQueue;
 
 pub mod copy;
 pub mod ui;
+pub mod string;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -24,7 +25,11 @@ pub struct Args {
 }
 
 fn main() {
-    let queue = CopyQueue::from((PathBuf::from("test_dir"), vec![]));
+    let queue = CopyQueue::from((PathBuf::from("test_dir"), vec![
+       PathBuf::from("copy_to_1"),
+       PathBuf::from("copy_to_2"),
+       PathBuf::from("copy_to_3"),
+    ]));
 
     let ui = UserInterface::new().with_pre_copy(queue);
     ui.render(&mut stdout()).expect("Failed to render UI");
