@@ -186,13 +186,17 @@ impl UserInterface {
     fn render_lines(
         &self,
         stdout: &mut Stdout,
-        content: Vec<String>,
+        content: Vec<(String, Option<usize>)>,
     ) -> Result<(), std::io::Error> {
-        for (i, line) in content.iter().enumerate() {
-            let width = BOX_WIDTH
+        for (line, padding) in content.iter() {
+            let mut width = BOX_WIDTH
                 .checked_sub(line.unformat().len())
                 .unwrap_or(BOX_WIDTH)
                 - 1;
+
+            if let Some(padding) = padding {
+                width += padding;
+            }
 
             queue!(
                 stdout,
@@ -271,10 +275,9 @@ impl UserInterface {
     }
 
     fn render_queue(&self, stdout: &mut Stdout, queue: &CopyQueue) -> Result<(), std::io::Error> {
-        // TODO: Implement queue render function
         let arrow_index = match queue.destinations().len() {
-            0 => 0,
-            1 | 2 => 1,
+            0|1|2 => 0,
+            c if c % 2 == 0 => (c as f64 / 2.).floor() as usize - 1,
             c => (c as f64 / 2.).floor() as usize,
         };
 
@@ -292,11 +295,24 @@ impl UserInterface {
                 .destinations()
                 .iter()
                 .enumerate()
-                .map(|(i, dest)| {
-                    match i {
-                        i if i == arrow_index => format!("{} {}>  ", truncate(queue.source().display().to_string(), 15), HORIZONTAL_CHAR.to_string().repeat(2)),
-                        i => format!("{: >empty_space_padding$}", VERTICAL_CHAR),
-                    }
+                .map(|(i, dest)| match i {
+                    i if i == arrow_index => (
+                        format!(
+                            "{} {}> {}",
+                            truncate(queue.source().display().to_string(), 15),
+                            HORIZONTAL_CHAR.to_string().repeat(2),
+                            dest.display()
+                        ),
+                        Some(4),
+                    ),
+                    _ => (
+                        format!(
+                            "{: >empty_space_padding$}  {}",
+                            VERTICAL_CHAR,
+                            dest.display()
+                        ),
+                        Some(2),
+                    ),
                 })
                 .collect(),
         )?;
@@ -313,11 +329,14 @@ impl UserInterface {
         self.render_lines(
             stdout,
             vec![
-                "Do you want to copy to these directories?".into(),
-                format!(
-                    "Press {} or {} on your keyboard",
-                    "[Y]".dark_grey().bold(),
-                    "[N]".dark_grey().bold()
+                ("Do you want to copy to these directories?".into(), None),
+                (
+                    format!(
+                        "Press {} or {} on your keyboard",
+                        "[Y]".dark_grey().bold(),
+                        "[N]".dark_grey().bold()
+                    ),
+                    None,
                 ),
             ],
         )?;

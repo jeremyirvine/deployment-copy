@@ -27,8 +27,8 @@ pub struct Args {
 fn main() {
     let queue = CopyQueue::from((PathBuf::from("test_dir"), vec![
        PathBuf::from("copy_to_1"),
-       PathBuf::from("copy_to_2"),
-       PathBuf::from("copy_to_3"),
+       PathBuf::from("copy_to_1"),
+       PathBuf::from("copy_to_1"),
     ]));
 
     let ui = UserInterface::new().with_pre_copy(queue);
